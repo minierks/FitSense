@@ -9,15 +9,15 @@ const steps = [
   },
   {
     icon: <BrainCircuit className="h-8 w-8 text-chart-2" />,
-    title: "2. The models run",
+    title: "2. The model runs",
     description:
-      "We compute your BMI, then two Random Forest models trained on ~1,700 real gym sessions predict the best-fit workout type and session length.",
+      "A machine-learning model trained on ~1,600 real gym sessions predicts how many calories per minute you'd burn in each of 14 workouts.",
   },
   {
     icon: <Dumbbell className="h-8 w-8 text-chart-4" />,
     title: "3. Get your plan",
     description:
-      "You get a recommended workout, how long to train, and the pace needed to hit your calorie target.",
+      "You get the 3 workouts that reach your calorie target in about your usual session length, with time, calories and intensity for each.",
   },
 ];
 
