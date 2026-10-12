@@ -7,8 +7,8 @@ import { Toaster } from '@/components/ui/toaster';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'FitPlanner - Personalized Workout Recommendations',
-  description: 'Get personalized workout recommendations based on your fitness level and goals',
+  title: 'FitSense-AI - Personalized Workout Recommendations',
+  description: 'Get an ML-powered workout recommendation based on your body metrics, experience level, and calorie goal',
 };
 
 export default function RootLayout({

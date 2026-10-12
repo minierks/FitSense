@@ -38,6 +38,8 @@ export function Header() {
           variant="ghost"
           size="icon"
           className="md:hidden"
+          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={isMenuOpen}
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
           {isMenuOpen ? (

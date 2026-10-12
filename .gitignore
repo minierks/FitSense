@@ -1,0 +1,16 @@
+# Frontend
+project/node_modules/
+project/.next/
+project/out/
+project/next-env.d.ts
+*.tsbuildinfo
+.env*.local
+.vercel
+
+# Backend
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+
+.DS_Store

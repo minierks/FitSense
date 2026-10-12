@@ -11,7 +11,7 @@ const features = [
     icon: <Activity className="h-8 w-8 text-chart-2" />,
     title: "Effective Routines",
     description:
-      "Science-backed workout routines designed to maximize results in minimal time.",
+      "Recommendations learned from real gym tracker sessions, not one-size-fits-all templates.",
   },
   {
     icon: <Zap className="h-8 w-8 text-chart-4" />,
@@ -23,7 +23,7 @@ const features = [
     icon: <Clock className="h-8 w-8 text-chart-5" />,
     title: "Time Optimized",
     description:
-      "Efficient workouts that fit your schedule and burn exactly the calories you target.",
+      "Get a session length sized to the calorie target you set.",
   },
 ];
 
@@ -34,7 +34,7 @@ export function FeaturesSection() {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-4">Why Choose FitSense-AI?</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Our advanced algorithm creates customized workout plans based on your
+            Machine-learning models recommend a workout based on your
             body metrics and fitness goals.
           </p>
         </div>

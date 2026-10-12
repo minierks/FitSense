@@ -11,13 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WorkoutResult } from "@/components/workout-result";
 import { useToast } from "@/hooks/use-toast";
+import { mockWorkoutResponse, type WorkoutRecommendation } from "@/lib/mock-data";
 
+// Keep these limits and options in sync with NUMERIC_FIELDS / CATEGORICAL_FIELDS in ml-api/app.py
 const formSchema = z.object({
   age: z.coerce.number().int().min(16, "Age must be at least 16").max(90, "Age must be at most 90"),
-  gender: z.enum(["Male", "Female"], { required_error: "Please select your gender" }),
+  gender: z.enum(["Male", "Female", "Non-binary"], { required_error: "Please select your gender" }),
   weight: z.coerce.number().min(30, "Weight must be at least 30kg").max(250, "Weight must be at most 250kg"),
   height: z.coerce.number().min(120, "Height must be at least 120cm").max(250, "Height must be at most 250cm"),
-  experience_level: z.enum(["Beginner", "Intermediate", "Advanced"], { required_error: "Please select your experience level" }),
+  experience_level: z.enum(["Beginner", "Intermediate", "Advanced", "Professional"], { required_error: "Please select your experience level" }),
   target_calories: z.coerce.number().min(100, "Target calories must be at least 100").max(1500, "Target calories must be at most 1500"),
 });
 
@@ -25,7 +27,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export function WorkoutForm() {
   const [isLoading, setIsLoading] = useState(false);
-  const [workoutData, setWorkoutData] = useState<any>(null);
+  const [workoutData, setWorkoutData] = useState<WorkoutRecommendation | null>(null);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -40,34 +42,38 @@ export function WorkoutForm() {
     },
   });
 
+  async function fetchRecommendation(values: FormValues): Promise<WorkoutRecommendation> {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
+    if (!baseUrl) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("NEXT_PUBLIC_API_URL is not set; using mock workout data.");
+        return mockWorkoutResponse;
+      }
+      throw new Error("The recommendation service is not configured.");
+    }
+
+    const response = await fetch(`${baseUrl}/predict`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(values),
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.error ?? `Request failed with status ${response.status}`);
+    }
+    return data;
+  }
+
   async function onSubmit(values: FormValues) {
     try {
-      // console.log("Form submitted with values:", values);
       setIsLoading(true);
       setWorkoutData(null);
-      
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/predict`;
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(values),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`);
-      }
-      
-      const data = await response.json();
-      // const data ={
-      //     "expected_calorie_burn": 300.0,
-      //     "recommended_duration": 44,
-      //     "recommended_workout": "Walking"
-      // }
-      console.log("API response:", data);
-      setWorkoutData(data);
-      
+
+      setWorkoutData(await fetchRecommendation(values));
+
       toast({
         title: "Success!",
         description: "Your personalized workout has been generated",
@@ -75,8 +81,13 @@ export function WorkoutForm() {
     } catch (error) {
       console.error("Error fetching workout recommendation:", error);
       toast({
-        title: "Error",
-        description: "Failed to get workout recommendation. Please try again.",
+        title: "Couldn't get a recommendation",
+        description:
+          error instanceof TypeError
+            ? "Could not reach the recommendation service. Please try again in a moment."
+            : error instanceof Error
+              ? error.message
+              : "Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -96,7 +107,7 @@ export function WorkoutForm() {
                 <FormItem>
                   <FormLabel>Age</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="Enter your age" {...field} />
+                    <Input type="number" placeholder="Enter your age" {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -118,6 +129,7 @@ export function WorkoutForm() {
                     <SelectContent>
                       <SelectItem value="Male">Male</SelectItem>
                       <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Non-binary">Non-binary</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -132,7 +144,7 @@ export function WorkoutForm() {
                 <FormItem>
                   <FormLabel>Weight (kg)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="Enter your weight in kg" {...field} />
+                    <Input type="number" placeholder="Enter your weight in kg" {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -146,7 +158,7 @@ export function WorkoutForm() {
                 <FormItem>
                   <FormLabel>Height (cm)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="Enter your height in cm" {...field} />
+                    <Input type="number" placeholder="Enter your height in cm" {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -169,6 +181,7 @@ export function WorkoutForm() {
                       <SelectItem value="Beginner">Beginner</SelectItem>
                       <SelectItem value="Intermediate">Intermediate</SelectItem>
                       <SelectItem value="Advanced">Advanced</SelectItem>
+                      <SelectItem value="Professional">Professional</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -183,7 +196,7 @@ export function WorkoutForm() {
                 <FormItem>
                   <FormLabel>Target Calories to Burn</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="Enter target calories" {...field} />
+                    <Input type="number" placeholder="Enter target calories" {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
