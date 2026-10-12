@@ -4,6 +4,7 @@ import os
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import numpy as np
 import pandas as pd
 import joblib
 
@@ -46,7 +47,8 @@ NUMERIC_FIELDS = {
     "age": (16, 90),
     "weight": (30, 250),
     "height": (120, 250),
-    "target_calories": (100, 1500),
+    # No session in the training data burned more than ~806 kcal, so larger targets are unsupported
+    "target_calories": (100, 800),
 }
 CATEGORICAL_FIELDS = {
     "gender": ("Male", "Female", "Non-binary"),
@@ -112,8 +114,8 @@ def get_intensity_label(intensity):
     return 'Low'
 
 def recommend_workouts(age, gender, weight, bmi, experience_level, target_calories, top_n=TOP_N):
-    """Score every workout type and return the top_n whose required time is closest
-    to the usual session length for the user's experience level."""
+    """Score every workout type and return the top_n plans: single sessions closest to the
+    usual length for the user's experience level first, then split plans by least total time."""
     candidates = pd.DataFrame({
         'Age': age,
         'Gender': gender,
@@ -132,18 +134,30 @@ def recommend_workouts(age, gender, weight, bmi, experience_level, target_calori
     if experience_level == 'Beginner':
         candidates = candidates[candidates['intensity'] < HIGH_INTENSITY_THRESHOLD]
 
+    # Anything longer than the longest session in the data is split into equal shorter sessions
+    candidates['sessions'] = np.ceil(candidates['minutes'].round() / MAX_MINUTES_OBSERVED).clip(lower=1).astype(int)
+    candidates['minutes_per_session'] = (candidates['minutes'] / candidates['sessions']).round().clip(lower=1).astype(int)
+
+    # Plans that fit in one session come first, closest to what this experience level usually does;
+    # plans that must be split come after, needing the least total time first
     usual_minutes = TYPICAL_MINUTES[experience_level]
-    candidates['distance_from_usual'] = (candidates['minutes'] - usual_minutes).abs()
-    best = candidates.nsmallest(top_n, 'distance_from_usual')
+    candidates['rank_score'] = np.where(
+        candidates['sessions'] == 1,
+        (candidates['minutes'] - usual_minutes).abs(),
+        candidates['minutes'],
+    )
+    best = candidates.sort_values(['sessions', 'rank_score']).head(top_n)
 
     recommendations = []
     for row in best.itertuples():
-        duration = max(1, int(round(row.minutes)))
+        total_minutes = int(row.sessions * row.minutes_per_session)
         recommendations.append({
             'workout': row.Workout_Type,
-            'duration_minutes': duration,
+            'sessions': int(row.sessions),
+            'minutes_per_session': int(row.minutes_per_session),
+            'duration_minutes': total_minutes,
             'calories_per_minute': round(float(row.calories_per_min), 1),
-            'expected_calorie_burn': int(round(row.calories_per_min * duration)),
+            'expected_calorie_burn': int(round(row.calories_per_min * total_minutes)),
             'intensity': get_intensity_label(row.intensity),
         })
     return recommendations
@@ -152,7 +166,7 @@ def build_response(age, gender, weight, bmi, experience_level, target_calories):
     recommendations = recommend_workouts(age, gender, weight, bmi, experience_level, target_calories)
     top = recommendations[0]
 
-    result = {
+    return {
         # Top-level fields describe the best recommendation (kept for existing clients)
         'recommended_workout': top['workout'],
         'recommended_duration': top['duration_minutes'],
@@ -162,13 +176,6 @@ def build_response(age, gender, weight, bmi, experience_level, target_calories):
         'bmi_category': get_bmi_category(bmi),
         'model_version': MODEL_VERSION,
     }
-    if top['duration_minutes'] > MAX_MINUTES_OBSERVED:
-        result['warning'] = (
-            f"Burning {int(target_calories)} kcal needs about {top['duration_minutes']} minutes, "
-            f"longer than any session in our data (~{int(MAX_MINUTES_OBSERVED)} min). "
-            "Consider splitting it into two sessions or lowering the target."
-        )
-    return result
 
 @app.route('/health', methods=['GET'])
 def health():

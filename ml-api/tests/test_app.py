@@ -36,7 +36,6 @@ def test_predict_valid(client):
     assert body["bmi"] == 22.9
     assert body["bmi_category"] == "Normal"
     assert body["model_version"] == MODEL_VERSION
-    assert "warning" not in body
 
 
 def test_predict_returns_top_recommendations(client):
@@ -47,7 +46,7 @@ def test_predict_returns_top_recommendations(client):
     for r in recommendations:
         assert r["workout"] in WORKOUT_INTENSITY
         assert r["intensity"] in ("Low", "Moderate", "High")
-        assert r["duration_minutes"] > 0
+        assert r["duration_minutes"] == r["sessions"] * r["minutes_per_session"] > 0
         assert r["calories_per_minute"] > 0
     # Top-level fields mirror the best recommendation
     assert body["recommended_workout"] == recommendations[0]["workout"]
@@ -63,7 +62,7 @@ def test_bigger_target_means_higher_burn_rate(client):
     assert top_rate(600) > top_rate(150)
 
 
-@pytest.mark.parametrize("calories", [100, 300, 600, 1000, 1500])
+@pytest.mark.parametrize("calories", [100, 300, 600, 800])
 def test_beginners_never_get_high_intensity_workouts(client, calories):
     body = client.post(
         "/predict", json={**VALID, "experience_level": "Beginner", "target_calories": calories}
@@ -76,12 +75,34 @@ def test_accepts_all_trained_categories(client):
     assert res.status_code == 200
 
 
-def test_warns_when_session_is_unrealistically_long(client):
+def test_rejects_targets_beyond_training_data(client):
+    res = client.post("/predict", json={**VALID, "target_calories": 801})
+    assert res.status_code == 400
+    assert "'target_calories' must be between 100 and 800" in res.get_json()["error"]
+
+
+@pytest.mark.parametrize("level", ["Beginner", "Intermediate", "Advanced", "Professional"])
+def test_no_session_is_longer_than_the_training_data(client, level):
     body = client.post(
-        "/predict", json={**VALID, "experience_level": "Beginner", "target_calories": 1500}
+        "/predict", json={**VALID, "experience_level": level, "target_calories": 800}
     ).get_json()
-    assert body["recommended_duration"] > MAX_MINUTES_OBSERVED
-    assert "longer than any session" in body["warning"]
+    for r in body["recommendations"]:
+        assert r["minutes_per_session"] <= MAX_MINUTES_OBSERVED
+
+
+def test_long_plans_are_split_into_sessions(client):
+    # Beginners skip HIIT/CrossFit, so no allowed workout reaches 800 kcal within ~70 min
+    body = client.post(
+        "/predict", json={**VALID, "experience_level": "Beginner", "target_calories": 800}
+    ).get_json()
+    assert all(r["sessions"] == 2 for r in body["recommendations"])
+
+
+def test_single_session_plans_rank_before_split_plans(client):
+    body = client.post("/predict", json={**VALID, "target_calories": 800}).get_json()
+    sessions = [r["sessions"] for r in body["recommendations"]]
+    assert sessions == sorted(sessions)
+    assert sessions[0] == 1
 
 
 def test_predict_accepts_numeric_strings(client):

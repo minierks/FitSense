@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Clock, Flame, Gauge, Scale, Share2, Zap } from "lucide-react";
+import { Clock, Flame, Gauge, Scale, Share2, Zap } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +39,12 @@ function IntensityBadge({ intensity }: { intensity: Intensity }) {
   );
 }
 
+function formatDuration(option: WorkoutOption) {
+  return option.sessions > 1
+    ? `${option.sessions} × ${option.minutes_per_session} min`
+    : `${option.duration_minutes} min`;
+}
+
 function AlternativeCard({ option, rank }: { option: WorkoutOption; rank: number }) {
   return (
     <Card>
@@ -55,7 +60,7 @@ function AlternativeCard({ option, rank }: { option: WorkoutOption; rank: number
       <CardContent className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
         <span className="flex items-center">
           <Clock className="h-4 w-4 mr-1.5 text-chart-1" />
-          {option.duration_minutes} min
+          {formatDuration(option)}
         </span>
         <span className="flex items-center">
           <Flame className="h-4 w-4 mr-1.5 text-chart-4" />
@@ -85,8 +90,8 @@ export function WorkoutResult({ data }: WorkoutResultProps) {
   const stats = [
     {
       icon: <Clock className="h-5 w-5 mr-2 text-chart-1" />,
-      label: "Duration",
-      value: `${data.recommended_duration} minutes`,
+      label: best && best.sessions > 1 ? `Duration (${best.sessions} sessions)` : "Duration",
+      value: best ? formatDuration(best) : `${data.recommended_duration} min`,
     },
     {
       icon: <Flame className="h-5 w-5 mr-2 text-chart-4" />,
@@ -110,7 +115,8 @@ export function WorkoutResult({ data }: WorkoutResultProps) {
   ];
 
   const handleShare = async () => {
-    const text = `My FitSense-AI workout: ${data.recommended_workout} for ${data.recommended_duration} minutes to burn ~${Math.round(data.expected_calorie_burn)} kcal.`;
+    const duration = best ? formatDuration(best) : `${data.recommended_duration} min`;
+    const text = `My FitSense-AI workout: ${data.recommended_workout} for ${duration} to burn ~${Math.round(data.expected_calorie_burn)} kcal.`;
     try {
       if (navigator.share) {
         await navigator.share({ title: "My FitSense-AI workout", text, url: window.location.href });
@@ -132,14 +138,6 @@ export function WorkoutResult({ data }: WorkoutResultProps) {
   return (
     <div className="mt-8 animate-in fade-in-50 duration-500" aria-live="polite">
       <h3 className="text-xl font-semibold mb-4">Your Personalized Workout Plan</h3>
-
-      {data.warning && (
-        <Alert className="mb-4 border-amber-500/50 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>That's a long session</AlertTitle>
-          <AlertDescription>{data.warning}</AlertDescription>
-        </Alert>
-      )}
 
       <Card className="overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-chart-1/20 to-chart-2/20 dark:from-chart-1/10 dark:to-chart-2/10">
@@ -190,8 +188,8 @@ export function WorkoutResult({ data }: WorkoutResultProps) {
             Other good options
           </h4>
           <p className="text-sm text-muted-foreground mt-1 mb-4">
-            Each one reaches your calorie target. They're ranked by how closely the time needed
-            matches a typical session at your experience level.
+            Each one reaches your calorie target. Single sessions come first, closest to a typical
+            session at your experience level; longer plans are split into equal sessions.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {alternatives.map((option, index) => (

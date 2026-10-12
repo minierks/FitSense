@@ -20,7 +20,7 @@ const formSchema = z.object({
   weight: z.coerce.number().min(30, "Weight must be at least 30kg").max(250, "Weight must be at most 250kg"),
   height: z.coerce.number().min(120, "Height must be at least 120cm").max(250, "Height must be at most 250cm"),
   experience_level: z.enum(["Beginner", "Intermediate", "Advanced", "Professional"], { required_error: "Please select your experience level" }),
-  target_calories: z.coerce.number().min(100, "Target calories must be at least 100").max(1500, "Target calories must be at most 1500"),
+  target_calories: z.coerce.number().min(100, "Target calories must be at least 100").max(800, "Target calories must be at most 800 per session"),
 });
 
 type FormValues = z.infer<typeof formSchema>;

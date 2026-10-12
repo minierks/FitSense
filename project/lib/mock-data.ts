@@ -3,6 +3,9 @@ export type Intensity = "Low" | "Moderate" | "High";
 // One ranked option from the API's `recommendations` list
 export interface WorkoutOption {
   workout: string;
+  // Long plans are split into equal sessions; duration_minutes is the total
+  sessions: number;
+  minutes_per_session: number;
   duration_minutes: number;
   calories_per_minute: number;
   expected_calorie_burn: number;
@@ -20,8 +23,6 @@ export interface WorkoutRecommendation {
   bmi: number;
   bmi_category: "Underweight" | "Normal" | "Overweight" | "Obese";
   model_version?: string;
-  // Present when even the best option needs a longer session than the training data covers
-  warning?: string;
 }
 
 // Sample response used in development when NEXT_PUBLIC_API_URL is not set,
@@ -31,9 +32,9 @@ export const mockWorkoutResponse: WorkoutRecommendation = {
   recommended_duration: 50,
   expected_calorie_burn: 302,
   recommendations: [
-    { workout: "Walking", duration_minutes: 50, calories_per_minute: 6.0, expected_calorie_burn: 302, intensity: "Low" },
-    { workout: "Aerobics", duration_minutes: 37, calories_per_minute: 8.1, expected_calorie_burn: 298, intensity: "Moderate" },
-    { workout: "Boxing", duration_minutes: 37, calories_per_minute: 8.1, expected_calorie_burn: 299, intensity: "Moderate" },
+    { workout: "Walking", sessions: 1, minutes_per_session: 50, duration_minutes: 50, calories_per_minute: 6.0, expected_calorie_burn: 302, intensity: "Low" },
+    { workout: "Aerobics", sessions: 1, minutes_per_session: 37, duration_minutes: 37, calories_per_minute: 8.1, expected_calorie_burn: 298, intensity: "Moderate" },
+    { workout: "Boxing", sessions: 1, minutes_per_session: 37, duration_minutes: 37, calories_per_minute: 8.1, expected_calorie_burn: 299, intensity: "Moderate" },
   ],
   bmi: 22.9,
   bmi_category: "Normal",
